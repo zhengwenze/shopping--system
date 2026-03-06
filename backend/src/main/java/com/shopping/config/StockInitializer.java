@@ -1,5 +1,6 @@
 package com.shopping.config;
 
+import com.shopping.common.SeckillCacheKeys;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -20,7 +21,22 @@ public class StockInitializer {
                 Object id = product.get("id");
                 Object stock = product.get("stock");
                 if (id != null && stock != null) {
-                    redisTemplate.opsForValue().set("seckill:stock:" + id, String.valueOf(stock));
+                    redisTemplate.opsForValue().set(SeckillCacheKeys.stockKey(Long.valueOf(String.valueOf(id))), String.valueOf(stock));
+                }
+            }
+
+            List<Map<String, Object>> orders = jdbcTemplate.queryForList("SELECT user_id, product_id FROM order_info");
+            for (Map<String, Object> order : orders) {
+                Object userId = order.get("user_id");
+                Object productId = order.get("product_id");
+                if (userId != null && productId != null) {
+                    redisTemplate.opsForValue().set(
+                            SeckillCacheKeys.userOrderKey(
+                                    Long.valueOf(String.valueOf(userId)),
+                                    Long.valueOf(String.valueOf(productId))
+                            ),
+                            "1"
+                    );
                 }
             }
         };

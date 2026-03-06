@@ -16,3 +16,9 @@ management:
     health:
       probes:
         enabled: true
+
+app:
+  seckill:
+    rate-limit:
+      window-seconds: 5
+      max-requests: 5

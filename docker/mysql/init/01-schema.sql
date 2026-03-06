@@ -9,7 +9,8 @@ CREATE TABLE IF NOT EXISTS order_info (
   user_id BIGINT NOT NULL,
   product_id BIGINT NOT NULL,
   create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  KEY idx_product_id (product_id)
+  KEY idx_product_id (product_id),
+  UNIQUE KEY uk_user_product (user_id, product_id)
 );
 
 INSERT INTO product(id, name, stock)

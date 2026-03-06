@@ -2,10 +2,11 @@
 
 一个面向练手和展示的秒杀系统示例项目，技术栈为 `Spring Boot + React + Redis + RabbitMQ + MySQL + Docker Compose`。
 
-这个仓库现在支持两种工作方式：
+这个仓库现在支持三种工作方式：
 
-1. 本地开发模式
-2. Docker 一键部署模式
+1. 本地一键启动到可验收
+2. 本地开发模式
+3. Docker 一键部署模式
 
 ## 项目结构
 
@@ -42,6 +43,35 @@ shopping--system/
 
 如果你本机只有别的 JDK 版本，或者你不想在本机装 `Node.js / JDK`，可以直接使用下面的“零本机依赖开发模式”。
 
+## 本地一键启动到可验收
+
+如果你当前的目标是:
+
+- 在本地 MacBook 上尽快把项目拉起来
+- 不手动处理端口冲突
+- 一键启动后直接验收接口和前端
+
+直接执行：
+
+```bash
+./scripts/local-up.sh
+./scripts/local-check.sh
+```
+
+停止环境：
+
+```bash
+./scripts/local-down.sh
+```
+
+这套脚本会自动：
+
+- 选择空闲端口，避开你本机已有容器
+- 启动 MySQL / Redis / RabbitMQ / 后端 / 前端
+- 等待前后端就绪
+- 输出可访问地址
+- 用真实秒杀请求检查“首次下单成功、重复下单被拦截”
+
 ## 零本机依赖开发模式
 
 这个模式只要求你装了 `Docker Desktop`，非常适合你当前这台 MacBook：
@@ -64,6 +94,7 @@ docker compose -f docker-compose.local.yml up --build
 - Maven 依赖缓存保存在 Docker 卷里，不会每次都从零下载
 - 前端通过 Vite 开发服务器启动，并自动代理到后端容器
 - 默认避开常见冲突端口，必要时可用 `FRONTEND_DEV_PORT`、`BACKEND_DEV_PORT`、`RABBITMQ_UI_PORT` 覆盖
+- `./scripts/local-up.sh` 就是对这套模式的自动化封装
 
 ## 本地开发模式
 
@@ -104,7 +135,7 @@ docker compose -f docker-compose.dev.yml up -d
 
 ```bash
 cd backend
-./mvnw -Dmaven.test.skip=true spring-boot:run -Dspring-boot.run.profiles=dev
+./mvnw -Dmaven.test.skip=true -Dspring-boot.run.useTestClasspath=false spring-boot:run -Dspring-boot.run.profiles=dev
 ```
 
 ### 3. 启动前端

@@ -38,7 +38,32 @@ shopping--system/
 
 它们都交给 Docker。
 
-`Maven` 可以不单独安装。如果你用 IDEA 开发 Java，IDE 自带 Maven 支持；如果你只做 Docker 部署，后端镜像也会在容器里完成 Maven 构建。
+`Maven` 不需要单独安装。项目已经带上 `Maven Wrapper`，直接使用 `./mvnw` 即可。
+
+如果你本机只有别的 JDK 版本，或者你不想在本机装 `Node.js / JDK`，可以直接使用下面的“零本机依赖开发模式”。
+
+## 零本机依赖开发模式
+
+这个模式只要求你装了 `Docker Desktop`，非常适合你当前这台 MacBook：
+
+```bash
+docker compose -f docker-compose.local.yml up --build
+```
+
+启动后会得到：
+
+- 前端开发服务器: `http://localhost:3001`
+- 后端开发服务: `http://localhost:8081`
+- 后端健康检查: `http://localhost:8081/actuator/health`
+- RabbitMQ 控制台: `http://localhost:15673`
+
+这个模式的特点：
+
+- 中间件全部走 Docker
+- 后端通过 `backend/mvnw` 在容器内启动
+- Maven 依赖缓存保存在 Docker 卷里，不会每次都从零下载
+- 前端通过 Vite 开发服务器启动，并自动代理到后端容器
+- 默认避开常见冲突端口，必要时可用 `FRONTEND_DEV_PORT`、`BACKEND_DEV_PORT`、`RABBITMQ_UI_PORT` 覆盖
 
 ## 本地开发模式
 
@@ -79,7 +104,7 @@ docker compose -f docker-compose.dev.yml up -d
 
 ```bash
 cd backend
-mvn spring-boot:run -Dspring-boot.run.profiles=dev
+./mvnw -Dmaven.test.skip=true spring-boot:run -Dspring-boot.run.profiles=dev
 ```
 
 ### 3. 启动前端
@@ -136,6 +161,9 @@ docker compose up -d --build
 ## 目前已经补齐的工程化能力
 
 - 开发态与部署态配置拆分
+- Maven Wrapper，本机无需单独安装 Maven
+- 后端 Docker 构建缓存，避免每次改 Java 都全量下载依赖
+- 零本机依赖开发编排，可直接在 Docker 中跑前后端
 - MySQL 初始化脚本
 - Docker Compose 健康检查
 - 前端开发代理和部署代理

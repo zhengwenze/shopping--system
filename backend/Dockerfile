@@ -1,8 +1,21 @@
-FROM maven:3.9.0-eclipse-temurin-17 AS build
+# syntax=docker/dockerfile:1.7
+
+FROM eclipse-temurin:17-jdk-jammy AS build
 WORKDIR /app
+
+COPY mvnw mvnw.cmd ./
+COPY .mvn .mvn
 COPY pom.xml .
+
+RUN chmod +x mvnw
+RUN --mount=type=cache,target=/root/.m2/wrapper \
+    --mount=type=cache,target=/root/.m2/repository \
+    ./mvnw -B -Dmaven.test.skip=true dependency:go-offline
+
 COPY src ./src
-RUN mvn clean package -DskipTests
+RUN --mount=type=cache,target=/root/.m2/wrapper \
+    --mount=type=cache,target=/root/.m2/repository \
+    ./mvnw -B -Dmaven.test.skip=true clean package
 
 FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app

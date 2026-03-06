@@ -28,6 +28,10 @@ echo "前端首页:"
 curl -I "http://localhost:$FRONTEND_DEV_PORT" | sed -n '1,5p'
 echo
 echo
+echo "前端代理秒杀请求:"
+curl -sS -X POST "http://localhost:$FRONTEND_DEV_PORT/api/seckill?userId=$((USER_ID + 1))&productId=1"
+echo
+echo
 echo "秒杀首次请求:"
 echo "$FIRST_RESPONSE"
 echo

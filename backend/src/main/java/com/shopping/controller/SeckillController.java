@@ -4,6 +4,7 @@ import com.shopping.common.ApiResponse;
 import com.shopping.common.ErrorCode;
 import com.shopping.exception.BusinessException;
 import com.shopping.model.SeckillResultResponse;
+import com.shopping.model.SeckillStockResponse;
 import com.shopping.model.SeckillSubmitResponse;
 import com.shopping.security.AuthenticatedUser;
 import com.shopping.service.SeckillService;
@@ -34,6 +35,20 @@ public class SeckillController {
 
         SeckillSubmitResponse response = seckillService.trySeckill(currentUser.getId(), productId);
         return ApiResponse.success("秒杀请求已受理，正在排队处理", response);
+    }
+
+    @GetMapping("/seckill/stock")
+    public ApiResponse<SeckillStockResponse> getCurrentStock(
+            @AuthenticationPrincipal AuthenticatedUser currentUser,
+            @RequestParam Long productId
+    ) {
+        if (currentUser == null || currentUser.getId() == null || currentUser.getId() <= 0 || productId == null || productId <= 0) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "用户或商品参数不合法", HttpStatus.BAD_REQUEST);
+        }
+
+        SeckillStockResponse response = seckillService.getCurrentStock(productId);
+        String message = response.isSoldOut() ? "商品已售罄" : "库存查询成功";
+        return ApiResponse.success(message, response);
     }
 
     @GetMapping("/seckill/result")

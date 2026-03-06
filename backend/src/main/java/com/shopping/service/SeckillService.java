@@ -5,13 +5,14 @@ import com.shopping.common.SeckillCacheKeys;
 import com.shopping.exception.BusinessException;
 import com.shopping.model.OrderMessage;
 import com.shopping.model.SeckillResultResponse;
+import com.shopping.model.SeckillStockResponse;
 import com.shopping.model.SeckillSubmitResponse;
 import com.shopping.mq.MQConfig;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.http.HttpStatus;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.Arrays;
@@ -25,15 +26,20 @@ public class SeckillService {
     private static final String STATUS_SUCCESS = "SUCCESS";
     private static final String STATUS_SOLD_OUT = "SOLD_OUT";
 
-    @Autowired
-    private StringRedisTemplate redisTemplate;
-
-    @Autowired
-    private RabbitTemplate rabbitTemplate;
+    private final StringRedisTemplate redisTemplate;
+    private final RabbitTemplate rabbitTemplate;
+    private final JdbcTemplate jdbcTemplate;
 
     private final DefaultRedisScript<Long> seckillScript = new DefaultRedisScript<>();
 
-    public SeckillService() {
+    public SeckillService(
+            StringRedisTemplate redisTemplate,
+            RabbitTemplate rabbitTemplate,
+            JdbcTemplate jdbcTemplate
+    ) {
+        this.redisTemplate = redisTemplate;
+        this.rabbitTemplate = rabbitTemplate;
+        this.jdbcTemplate = jdbcTemplate;
         seckillScript.setScriptText(
             "if redis.call('EXISTS', KEYS[2]) == 1 then return -2 end " +
             "local stock = tonumber(redis.call('GET', KEYS[1])) " +
@@ -77,6 +83,29 @@ public class SeckillService {
         }
 
         return new SeckillSubmitResponse(userId, productId, STATUS_QUEUED);
+    }
+
+    public SeckillStockResponse getCurrentStock(Long productId) {
+        String stockKey = SeckillCacheKeys.stockKey(productId);
+        String stockText = redisTemplate.opsForValue().get(stockKey);
+        int stock;
+
+        if (stockText != null) {
+            stock = Integer.parseInt(stockText);
+        } else {
+            Integer dbStock = jdbcTemplate.queryForObject(
+                    "SELECT stock FROM product WHERE id = ?",
+                    Integer.class,
+                    productId
+            );
+            if (dbStock == null) {
+                throw new BusinessException(ErrorCode.INVALID_REQUEST, "商品不存在", HttpStatus.NOT_FOUND);
+            }
+            stock = Math.max(dbStock, 0);
+            redisTemplate.opsForValue().set(stockKey, String.valueOf(stock));
+        }
+
+        return new SeckillStockResponse(productId, stock, stock <= 0);
     }
 
     public SeckillResultResponse getSeckillResult(Long userId, Long productId) {

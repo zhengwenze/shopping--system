@@ -37,6 +37,13 @@ public class StockInitializer {
                             ),
                             "1"
                     );
+                    redisTemplate.opsForValue().set(
+                            SeckillCacheKeys.resultKey(
+                                    Long.valueOf(String.valueOf(userId)),
+                                    Long.valueOf(String.valueOf(productId))
+                            ),
+                            "SUCCESS"
+                    );
                 }
             }
         };

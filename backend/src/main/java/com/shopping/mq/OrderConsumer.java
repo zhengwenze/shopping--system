@@ -12,6 +12,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Component
 public class OrderConsumer {
 
+    private static final String STATUS_SUCCESS = "SUCCESS";
+    private static final String STATUS_SOLD_OUT = "SOLD_OUT";
+
     @Autowired
     private JdbcTemplate jdbc;
 
@@ -21,6 +24,8 @@ public class OrderConsumer {
     @Transactional
     @RabbitListener(queues = MQConfig.SECKILL_ORDER_QUEUE)
     public void handleOrder(OrderMessage msg) {
+        String resultKey = SeckillCacheKeys.resultKey(msg.getUserId(), msg.getProductId());
+
         Integer existing = jdbc.queryForObject(
                 "SELECT COUNT(1) FROM order_info WHERE user_id = ? AND product_id = ?",
                 Integer.class,
@@ -28,6 +33,7 @@ public class OrderConsumer {
                 msg.getProductId()
         );
         if (existing != null && existing > 0) {
+            redisTemplate.opsForValue().set(resultKey, STATUS_SUCCESS);
             return;
         }
 
@@ -35,10 +41,12 @@ public class OrderConsumer {
         if (updated > 0) {
             jdbc.update("INSERT INTO order_info(user_id, product_id) VALUES(?, ?)", msg.getUserId(), msg.getProductId());
             redisTemplate.opsForValue().set(SeckillCacheKeys.userOrderKey(msg.getUserId(), msg.getProductId()), "1");
+            redisTemplate.opsForValue().set(resultKey, STATUS_SUCCESS);
             return;
         }
 
         redisTemplate.delete(SeckillCacheKeys.userOrderKey(msg.getUserId(), msg.getProductId()));
+        redisTemplate.opsForValue().set(resultKey, STATUS_SOLD_OUT);
         redisTemplate.opsForValue().increment(SeckillCacheKeys.stockKey(msg.getProductId()));
     }
 }

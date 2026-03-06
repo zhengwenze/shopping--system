@@ -27,6 +27,9 @@ public class WebConfig implements WebMvcConfigurer {
         registry.addMapping("/seckill")
                 .allowedOriginPatterns(allowedOrigins)
                 .allowedMethods("POST", "OPTIONS");
+        registry.addMapping("/seckill/result")
+                .allowedOriginPatterns(allowedOrigins)
+                .allowedMethods("GET", "OPTIONS");
     }
 
     @Override

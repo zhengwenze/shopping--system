@@ -15,16 +15,43 @@ source "$STATE_FILE"
 
 FRONTEND_DEV_PORT="${FRONTEND_DEV_PORT:-3001}"
 BACKEND_DEV_PORT="${BACKEND_DEV_PORT:-8081}"
+USERNAME="demo_$(date +%s)_$RANDOM"
+PROXY_USERNAME="proxy_$(date +%s)_$RANDOM"
+PASSWORD="Passw0rd!"
 
-BASE_USER_ID="$(( $(date +%s) + (RANDOM * 1000) ))"
-USER_ID="$BASE_USER_ID"
-PROXY_USER_ID="$((BASE_USER_ID + 1))"
+parse_json_field() {
+  local path="$1"
+  python3 -c 'import json, sys
+data = json.loads(sys.stdin.read())
+value = data
+for part in sys.argv[1].split("."):
+    value = value[part]
+print(value)' "$path"
+}
 
-FIRST_RESPONSE="$(curl -sS -X POST "http://localhost:$BACKEND_DEV_PORT/seckill?userId=$USER_ID&productId=1")"
-SECOND_RESPONSE="$(curl -sS -X POST "http://localhost:$BACKEND_DEV_PORT/seckill?userId=$USER_ID&productId=1")"
+REGISTER_RESPONSE="$(curl -sS -X POST "http://localhost:$BACKEND_DEV_PORT/auth/register" \
+  -H "Content-Type: application/json" \
+  -d "{\"username\":\"$USERNAME\",\"password\":\"$PASSWORD\"}")"
+LOGIN_RESPONSE="$(curl -sS -X POST "http://localhost:$BACKEND_DEV_PORT/auth/login" \
+  -H "Content-Type: application/json" \
+  -d "{\"username\":\"$USERNAME\",\"password\":\"$PASSWORD\"}")"
+TOKEN="$(printf '%s' "$LOGIN_RESPONSE" | parse_json_field "data.token")"
+PROXY_REGISTER_RESPONSE="$(curl -sS -X POST "http://localhost:$BACKEND_DEV_PORT/auth/register" \
+  -H "Content-Type: application/json" \
+  -d "{\"username\":\"$PROXY_USERNAME\",\"password\":\"$PASSWORD\"}")"
+PROXY_TOKEN="$(printf '%s' "$PROXY_REGISTER_RESPONSE" | parse_json_field "data.token")"
+
+UNAUTHORIZED_RESPONSE="$(curl -sS -o /tmp/shopping_auth_check_unauthorized.json -w "%{http_code}" \
+  -X POST "http://localhost:$BACKEND_DEV_PORT/seckill?productId=1")"
+FIRST_RESPONSE="$(curl -sS -X POST "http://localhost:$BACKEND_DEV_PORT/seckill?productId=1" \
+  -H "Authorization: Bearer $TOKEN")"
+SECOND_RESPONSE="$(curl -sS -X POST "http://localhost:$BACKEND_DEV_PORT/seckill?productId=1" \
+  -H "Authorization: Bearer $TOKEN")"
 sleep 1
-RESULT_RESPONSE="$(curl -sS "http://localhost:$BACKEND_DEV_PORT/seckill/result?userId=$USER_ID&productId=1")"
-PROXY_RESPONSE="$(curl -sS -X POST "http://localhost:$FRONTEND_DEV_PORT/api/seckill?userId=$PROXY_USER_ID&productId=1")"
+RESULT_RESPONSE="$(curl -sS "http://localhost:$BACKEND_DEV_PORT/seckill/result?productId=1" \
+  -H "Authorization: Bearer $TOKEN")"
+PROXY_RESPONSE="$(curl -sS -X POST "http://localhost:$FRONTEND_DEV_PORT/api/seckill?productId=1" \
+  -H "Authorization: Bearer $PROXY_TOKEN")"
 
 echo "后端健康检查:"
 curl -fsS "http://localhost:$BACKEND_DEV_PORT/actuator/health"
@@ -32,6 +59,22 @@ echo
 echo
 echo "前端首页:"
 curl -I "http://localhost:$FRONTEND_DEV_PORT" | sed -n '1,5p'
+echo
+echo
+echo "注册响应:"
+echo "$REGISTER_RESPONSE"
+echo
+echo
+echo "登录响应:"
+echo "$LOGIN_RESPONSE"
+echo
+echo
+echo "前端代理用户注册响应:"
+echo "$PROXY_REGISTER_RESPONSE"
+echo
+echo
+echo "未登录秒杀响应码:"
+echo "$UNAUTHORIZED_RESPONSE"
 echo
 echo
 echo "前端代理秒杀请求:"
@@ -49,6 +92,26 @@ echo
 echo "秒杀重复请求:"
 echo "$SECOND_RESPONSE"
 
+if [[ "$REGISTER_RESPONSE" != *'"code":0'* ]]; then
+  echo "注册接口未返回成功结果" >&2
+  exit 1
+fi
+
+if [[ "$LOGIN_RESPONSE" != *'"code":0'* ]]; then
+  echo "登录接口未返回成功结果" >&2
+  exit 1
+fi
+
+if [[ "$PROXY_REGISTER_RESPONSE" != *'"code":0'* ]]; then
+  echo "前端代理验收账号注册失败" >&2
+  exit 1
+fi
+
+if [[ "$UNAUTHORIZED_RESPONSE" != "401" ]]; then
+  echo "未登录访问秒杀接口未被正确拦截" >&2
+  exit 1
+fi
+
 if [[ "$FIRST_RESPONSE" != *'"code":0'* ]]; then
   echo "首次秒杀请求未返回成功受理结果" >&2
   exit 1
@@ -61,6 +124,11 @@ fi
 
 if [[ "$RESULT_RESPONSE" != *'"status":"SUCCESS"'* ]]; then
   echo "秒杀结果查询未返回最终成功状态" >&2
+  exit 1
+fi
+
+if [[ "$PROXY_RESPONSE" != *'"code":0'* ]]; then
+  echo "前端代理秒杀链路未通过" >&2
   exit 1
 fi
 

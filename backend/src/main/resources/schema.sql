@@ -4,6 +4,14 @@ CREATE TABLE IF NOT EXISTS product (
   stock INT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS user_account (
+  id BIGINT PRIMARY KEY,
+  username VARCHAR(64) NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_username (username)
+);
+
 CREATE TABLE IF NOT EXISTS order_info (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   user_id BIGINT NOT NULL,

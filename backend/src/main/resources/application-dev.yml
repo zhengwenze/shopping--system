@@ -15,7 +15,7 @@ spring:
     password: guest
   sql:
     init:
-      mode: never
+      mode: always
 
 logging:
   level:

@@ -3,11 +3,14 @@ package com.shopping.interceptor;
 import com.shopping.common.ErrorCode;
 import com.shopping.common.SeckillCacheKeys;
 import com.shopping.exception.BusinessException;
+import com.shopping.security.AuthenticatedUser;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.HandlerInterceptor;
@@ -33,7 +36,11 @@ public class RateLimitInterceptor implements HandlerInterceptor {
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
-        String userId = request.getParameter("userId");
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            return true;
+        }
+
+        String userId = resolveUserId();
         String clientIp = resolveClientIp(request);
         String clientId = StringUtils.hasText(userId) ? userId + ":" + clientIp : clientIp;
         String key = SeckillCacheKeys.rateLimitKey(request.getRequestURI(), clientId);
@@ -52,6 +59,14 @@ public class RateLimitInterceptor implements HandlerInterceptor {
         }
 
         return true;
+    }
+
+    private String resolveUserId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication.getPrincipal() instanceof AuthenticatedUser user)) {
+            return null;
+        }
+        return String.valueOf(user.getId());
     }
 
     private String resolveClientIp(HttpServletRequest request) {

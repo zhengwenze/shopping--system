@@ -18,6 +18,9 @@ management:
         enabled: true
 
 app:
+  jwt:
+    secret: ${APP_JWT_SECRET:shopping-system-demo-secret-key-please-change}
+    expiration-minutes: ${APP_JWT_EXPIRATION_MINUTES:120}
   seckill:
     rate-limit:
       window-seconds: 5

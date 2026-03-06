@@ -1,35 +1,17 @@
 package com.shopping.config;
 
 import com.shopping.interceptor.RateLimitInterceptor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
-import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
-    private final String[] allowedOrigins;
     private final RateLimitInterceptor rateLimitInterceptor;
 
-    public WebConfig(
-            @Value("${app.cors.allowed-origins:http://localhost:3000}") String allowedOrigins,
-            RateLimitInterceptor rateLimitInterceptor
-    ) {
-        this.allowedOrigins = StringUtils.commaDelimitedListToStringArray(allowedOrigins);
+    public WebConfig(RateLimitInterceptor rateLimitInterceptor) {
         this.rateLimitInterceptor = rateLimitInterceptor;
-    }
-
-    @Override
-    public void addCorsMappings(CorsRegistry registry) {
-        registry.addMapping("/seckill")
-                .allowedOriginPatterns(allowedOrigins)
-                .allowedMethods("POST", "OPTIONS");
-        registry.addMapping("/seckill/result")
-                .allowedOriginPatterns(allowedOrigins)
-                .allowedMethods("GET", "OPTIONS");
     }
 
     @Override

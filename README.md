@@ -70,7 +70,7 @@ shopping--system/
 - 启动 MySQL / Redis / RabbitMQ / 后端 / 前端
 - 等待前后端就绪
 - 输出可访问地址
-- 用真实秒杀请求检查“首次下单成功、重复下单被拦截”
+- 自动验收“注册成功、登录成功、未登录被拦截、首次秒杀成功、重复下单被拦截、前端代理链路可用”
 
 ## 零本机依赖开发模式
 
@@ -175,18 +175,27 @@ docker compose up -d --build
 
 ## 当前实现的核心链路
 
-1. 前端点击秒杀按钮
-2. 请求到后端 `/seckill`
-3. Redis Lua 脚本原子扣减缓存库存
-4. RabbitMQ 异步投递订单消息
-5. 消费者扣减数据库库存并写入订单表
+1. 用户先在前端完成注册或登录
+2. 后端签发 JWT，前端保存登录态
+3. 登录成功后才允许进入秒杀页面
+4. 前端点击秒杀按钮，请求带上 `Authorization: Bearer <token>`
+5. 后端从 JWT 解析当前用户身份，请求进入 `/seckill`
+6. Redis Lua 脚本原子扣减缓存库存并做重复下单拦截
+7. RabbitMQ 异步投递订单消息
+8. 消费者扣减数据库库存并写入订单表
+9. 前端轮询 `/seckill/result`，展示最终秒杀结果
 
 关键文件：
 
+- [AuthController.java](/Users/zhengwenze/Desktop/codex/shopping--system/backend/src/main/java/com/shopping/controller/AuthController.java)
+- [AuthService.java](/Users/zhengwenze/Desktop/codex/shopping--system/backend/src/main/java/com/shopping/service/AuthService.java)
+- [SecurityConfig.java](/Users/zhengwenze/Desktop/codex/shopping--system/backend/src/main/java/com/shopping/security/SecurityConfig.java)
+- [JwtAuthenticationFilter.java](/Users/zhengwenze/Desktop/codex/shopping--system/backend/src/main/java/com/shopping/security/JwtAuthenticationFilter.java)
 - [SeckillController.java](/Users/zhengwenze/Desktop/codex/shopping--system/backend/src/main/java/com/shopping/controller/SeckillController.java)
 - [SeckillService.java](/Users/zhengwenze/Desktop/codex/shopping--system/backend/src/main/java/com/shopping/service/SeckillService.java)
 - [OrderConsumer.java](/Users/zhengwenze/Desktop/codex/shopping--system/backend/src/main/java/com/shopping/mq/OrderConsumer.java)
 - [StockInitializer.java](/Users/zhengwenze/Desktop/codex/shopping--system/backend/src/main/java/com/shopping/config/StockInitializer.java)
+- [App.jsx](/Users/zhengwenze/Desktop/codex/shopping--system/frontend/src/App.jsx)
 - [SeckillButton.jsx](/Users/zhengwenze/Desktop/codex/shopping--system/frontend/src/SeckillButton.jsx)
 
 ## 目前已经补齐的工程化能力
@@ -199,6 +208,14 @@ docker compose up -d --build
 - Docker Compose 健康检查
 - 前端开发代理和部署代理
 - 后端健康检查端点
+- 用户注册 / 登录界面
+- JWT 鉴权与登录态校验
+- 登录后访问控制
+- 统一接口返回
+- 全局异常处理
+- 用户维度限流
+- 用户防重复下单
+- 秒杀最终结果反馈
 - Redis 库存预热
 - 更完整的忽略规则
 
@@ -206,11 +223,11 @@ docker compose up -d --build
 
 如果继续往“更像企业项目”推进，下一批优先项是：
 
-1. 增加接口返回统一结构
-2. 增加全局异常处理
-3. 增加用户维度限流和防重复下单
-4. 增加单元测试和集成测试
-5. 增加 CI/CD
-6. 增加监控指标与日志追踪
+1. 增加单元测试和集成测试
+2. 增加 CI/CD
+3. 增加监控指标与日志追踪
+4. 增加更完整的用户体系与角色权限
+5. 增加订单查询页和个人中心
+6. 增加更贴近生产的限流、熔断和审计日志
 
 你下一步如果愿意，我可以继续把这些能力往里加。 

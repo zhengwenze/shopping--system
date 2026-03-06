@@ -1,5 +1,7 @@
 package com.shopping.mq;
 
+import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
+import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.amqp.core.Queue;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -11,5 +13,10 @@ public class MQConfig {
     @Bean
     public Queue seckillOrderQueue() {
         return new Queue(SECKILL_ORDER_QUEUE, true);
+    }
+
+    @Bean
+    public MessageConverter rabbitMessageConverter() {
+        return new Jackson2JsonMessageConverter();
     }
 }

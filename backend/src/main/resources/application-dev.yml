@@ -1,0 +1,28 @@
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/seckill?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    username: root
+    password: 123456
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  redis:
+    host: localhost
+    port: 6379
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+  sql:
+    init:
+      mode: never
+
+logging:
+  level:
+    root: INFO
+    com.shopping: DEBUG
+    org.springframework.data.redis: INFO
+    org.springframework.amqp: INFO
+
+app:
+  cors:
+    allowed-origins: http://localhost:3000

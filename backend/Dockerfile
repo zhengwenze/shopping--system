@@ -4,8 +4,10 @@ COPY pom.xml .
 COPY src ./src
 RUN mvn clean package -DskipTests
 
-FROM openjdk:17-jdk-slim
+FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app
-COPY --from=build /app/target/backend.jar backend.jar
+RUN apt-get update && apt-get install -y wget && rm -rf /var/lib/apt/lists/*
+ENV SPRING_PROFILES_ACTIVE=docker
+COPY --from=build /app/target/*.jar backend.jar
 EXPOSE 8080
 ENTRYPOINT ["java","-jar","backend.jar"]
